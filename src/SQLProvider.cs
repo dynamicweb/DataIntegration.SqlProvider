@@ -182,53 +182,78 @@ namespace Dynamicweb.DataIntegration.Providers.SqlProvider
                 switch (node.Name)
                 {
                     case "SqlConnectionString":
-                        SqlConnectionString = node.FirstChild.Value;
+                        {
+                            SqlConnectionString = node.FirstChild.Value;
+                        }
                         break;
                     case "ManualConnectionString":
                         if (node.HasChildNodes)
+                        {
                             ManualConnectionString = node.FirstChild.Value;
+                        }
                         break;
                     case "Username":
                         if (node.HasChildNodes)
+                        {
                             Username = node.FirstChild.Value;
+                        }
                         break;
                     case "Password":
                         if (node.HasChildNodes)
+                        {
                             Password = node.FirstChild.Value;
+                        }
                         break;
                     case "Server":
                         if (node.HasChildNodes)
+                        {
                             Server = node.FirstChild.Value;
+                        }
                         break;
                     case "SourceServerSSPI":
                         if (node.HasChildNodes)
+                        {
                             SourceServerSSPI = node.FirstChild.Value == "True";
+                        }
                         break;
                     case "DestinationServerSSPI":
                         if (node.HasChildNodes)
+                        {
                             DestinationServerSSPI = node.FirstChild.Value == "True";
+                        }
                         break;
                     case "Catalog":
                         if (node.HasChildNodes)
+                        {
                             Catalog = node.FirstChild.Value;
+                        }
                         break;
                     case "Schema":
                         Schema = new Schema(node);
-
                         break;
                     case "RemoveMissingAfterImport":
-                        RemoveMissingAfterImport = node.FirstChild.Value == "True";
+                        if (node.HasChildNodes)
+                        {
+                            RemoveMissingAfterImport = node.FirstChild.Value == "True";
+                        }
                         break;
                     case "RemoveMissingAfterImportDestinationTablesOnly":
-                        RemoveMissingAfterImportDestinationTablesOnly = node.FirstChild.Value == "True";
+                        if (node.HasChildNodes)
+                        {
+                            RemoveMissingAfterImportDestinationTablesOnly = node.FirstChild.Value == "True";
+                        }
                         break;
                     case "DiscardDuplicates":
                         if (node.HasChildNodes)
+                        {
                             DiscardDuplicates = node.FirstChild.Value == "True";
+                        }
                         break;
                     case "SkipFailingRows":
                         if (node.HasChildNodes)
+                        {
                             SkipFailingRows = node.FirstChild.Value == "True";
+                        }
                         break;
                 }
             }

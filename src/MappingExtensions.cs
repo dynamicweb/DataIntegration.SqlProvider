@@ -223,6 +223,34 @@ namespace Dynamicweb.DataIntegration.Providers.SqlProvider
                     }
                     break;
 
+                case ConditionalOperator.GreaterThan:
+                    if (!string.IsNullOrEmpty(mappingConditional.Condition))
+                    {
+                        if (mappingConditional.SourceColumn.Type == typeof(string) || mappingConditional.SourceColumn.Type == typeof(DateTime))
+                        {
+                            conditionalsSql = string.Format("{0}[{1}] > '{2}' and ", conditionalsSql, columnName, mappingConditional.Condition);
+                        }
+                        else
+                        {
+                            conditionalsSql = string.Format("{0}[{1}] > {2} and ", conditionalsSql, columnName, mappingConditional.Condition);
+                        }
+                    }
+                    break;
+
+                case ConditionalOperator.LessThan:
+                    if (!string.IsNullOrEmpty(mappingConditional.Condition))
+                    {
+                        if (mappingConditional.SourceColumn.Type == typeof(string) || mappingConditional.SourceColumn.Type == typeof(DateTime))
+                        {
+                            conditionalsSql = string.Format("{0}[{1}] < '{2}' and ", conditionalsSql, columnName, mappingConditional.Condition);
+                        }
+                        else
+                        {
+                            conditionalsSql = string.Format("{0}[{1}] < {2} and ", conditionalsSql, columnName, mappingConditional.Condition);
+                        }
+                    }
+                    break;
+
                 default:
                     conditionalsSql = string.Format(
                         "{0}[{1}] = @conditional{2} and ",
