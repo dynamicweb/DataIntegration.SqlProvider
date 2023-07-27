@@ -188,14 +188,20 @@ namespace Dynamicweb.DataIntegration.Providers.SqlProvider
         /// <param name="Row">The row to be written.</param>
         public virtual void Write(Dictionary<string, object> row)
         {
+            if (!mapping.Conditionals.CheckConditionals(row))
+            {
+                return;
+            }
+
             DataRow dataRow = TableToWrite.NewRow();
 
             var columnMappings = mapping.GetColumnMappings().Where(cm => cm.Active);
             foreach (ColumnMapping columnMapping in columnMappings)
             {
-                if (columnMapping.HasScriptWithValue || row.ContainsKey(columnMapping.SourceColumn.Name))
+                object rowValue = null;
+                if (columnMapping.HasScriptWithValue || row.TryGetValue(columnMapping.SourceColumn?.Name, out rowValue))
                 {
-                    object dataToRow = columnMapping.ConvertInputValueToOutputValue(row[columnMapping.SourceColumn?.Name] ?? null);
+                    object dataToRow = columnMapping.ConvertInputValueToOutputValue(rowValue);
 
                     if (columnMappings.Any(obj => obj.DestinationColumn.Name == columnMapping.DestinationColumn.Name && obj.GetId() != columnMapping.GetId()))
                     {
