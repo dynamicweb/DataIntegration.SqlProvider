@@ -17,6 +17,10 @@ namespace Dynamicweb.DataIntegration.Providers.SqlProvider
         public SqlSourceReader(Mapping mapping, SqlConnection connection)
         {
             DoInitialization(mapping, connection);
+
+            if (connection.State.ToString() != "Open")
+                connection.Open();
+            LoadReaderFromDatabase();
         }
 
         protected void DoInitialization(Mapping mapping, SqlConnection connection)
@@ -30,9 +34,6 @@ namespace Dynamicweb.DataIntegration.Providers.SqlProvider
             if (_commandtimeout > 0)
                 _command.CommandTimeout = _commandtimeout;
 
-            if (connection.State.ToString() != "Open")
-                connection.Open();
-            LoadReaderFromDatabase();
         }
 
         private void LoadReaderFromDatabase()
