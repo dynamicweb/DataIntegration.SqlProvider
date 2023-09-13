@@ -3,16 +3,22 @@ using Dynamicweb.DataIntegration.Integration;
 using Dynamicweb.DataIntegration.Integration.Interfaces;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Data.SqlClient;
 using System.Linq;
 
 namespace Dynamicweb.DataIntegration.Providers.SqlProvider
 {
-    public class SqlSourceReader : ISourceReader
+    public class SqlSourceReader : ISourceReader, IResponseWriter
     {
         protected SqlCommand _command;
         protected SqlDataReader _reader;
         protected Mapping mapping;
+
+        private SqlCommand _responseCommand;
+        private int _responseMappingCounter = 0;
+        private List<KeyValuePair<string, Dictionary<string, object>>> _responseSQLs = new List<KeyValuePair<string, Dictionary<string, object>>>();
+        private List<string> _sourceColumnNamesWithIsKeySet = new List<string>();
 
         public SqlSourceReader(Mapping mapping, SqlConnection connection)
         {
@@ -23,6 +29,8 @@ namespace Dynamicweb.DataIntegration.Providers.SqlProvider
         {
             this.mapping = mapping;
             _command = new SqlCommand { Connection = connection };
+            _responseCommand = new SqlCommand { Connection = connection };
+            _sourceColumnNamesWithIsKeySet = mapping.GetColumnMappings().Where(obj => obj.SourceColumn != null && obj.IsKey).Select(obj => obj.SourceColumn.Name).Distinct().ToList();
 
             int _commandtimeout = Dynamicweb.Configuration.SystemConfiguration.Instance.Contains("/Globalsettings/Settings/DataIntegration/SQLSourceCommandTimeout") ?
                 Converter.ToInt32(Dynamicweb.Configuration.SystemConfiguration.Instance.GetValue("/Globalsettings/Settings/DataIntegration/SQLSourceCommandTimeout")) :
@@ -171,6 +179,71 @@ namespace Dynamicweb.DataIntegration.Providers.SqlProvider
         public void Dispose()
         {
             _reader.Close();
+        }
+
+        public void Write(Dictionary<string, object> row)
+        {
+            if (row != null && row.Any())
+            {
+                var columnMapping = mapping.GetResponseColumnMappings().FirstOrDefault();
+                if (columnMapping != null && columnMapping.DestinationColumn?.Table != null)
+                {
+                    if (_sourceColumnNamesWithIsKeySet is null || _sourceColumnNamesWithIsKeySet.Count() == 0)
+                    {
+                        throw new Exception($"The mapping {columnMapping.SourceColumn?.Table?.Name} - {columnMapping.DestinationColumn?.Table?.Name} must have at least one Key Column set");
+                    }
+                    string keyColumnPrefix = "_keyColumn";
+                    var destinationTable = columnMapping.DestinationColumn.Table;
+                    foreach (KeyValuePair<string, object> item in row)
+                    {
+                        var sqlParams = new Dictionary<string, object>
+                        {
+                            { $"{item.Key}{_responseMappingCounter}", item.Value }
+                        };
+
+                        string whereStatement = "";
+                        foreach (var keyColumn in _sourceColumnNamesWithIsKeySet)
+                        {
+                            whereStatement += $"{keyColumn} = @{keyColumnPrefix}{keyColumn}{_responseMappingCounter} AND ";
+                            sqlParams.Add($"{keyColumnPrefix}{keyColumn}{_responseMappingCounter}", _reader[keyColumn]);
+                        }
+                        whereStatement = $"WHERE {whereStatement.Substring(0, whereStatement.Length - 4)}";
+
+                        _responseSQLs.Add(new KeyValuePair<string, Dictionary<string, object>>($"UPDATE [{destinationTable.SqlSchema}].[{destinationTable.Name}] SET {item.Key} = @{item.Key}{_responseMappingCounter} {whereStatement};", sqlParams));
+                        _responseMappingCounter++;
+                    }
+                }
+            }
+        }
+
+        public void Close()
+        {
+            if (_responseSQLs.Any())
+            {
+                if (_responseCommand.Connection.State != ConnectionState.Open)
+                {
+                    _responseCommand.Connection.Open();
+                }
+                int chunkSize = 100;
+                var taken = 0;
+                while (taken < _responseSQLs.Count)
+                {
+                    var chunk = _responseSQLs.Skip(taken).Take(chunkSize);
+                    taken = taken + chunkSize;
+                    _responseCommand.CommandText = "";
+                    _responseCommand.Parameters.Clear();
+                    foreach (KeyValuePair<string, Dictionary<string, object>> pair in chunk)
+                    {
+                        _responseCommand.CommandText += pair.Key;
+                        foreach (var param in pair.Value)
+                        {
+                            _responseCommand.Parameters.Add(new SqlParameter(param.Key, param.Value));
+                        }
+                    }
+                    _responseCommand.ExecuteNonQuery();
+                }
+                _responseCommand.Connection.Close();
+            }
         }
     }
 }

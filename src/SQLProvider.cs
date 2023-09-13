@@ -15,10 +15,11 @@ using System.Xml.Linq;
 
 [assembly: InternalsVisibleTo("Dynamicweb.Tests.Integration")]
 namespace Dynamicweb.DataIntegration.Providers.SqlProvider
-{
+{    
     [AddInName("Dynamicweb.DataIntegration.Providers.Provider"), AddInLabel("SQL Provider"), AddInDescription("SQL provider"), AddInIgnore(false)]
+    [ResponseMapping(true)]
     public class SqlProvider : BaseProvider, ISource, IDestination
-    {
+    {        
         protected Schema Schema;
 
         [AddInParameter("Source server"), AddInParameterEditor(typeof(TextParameterEditor), ""), AddInParameterGroup("Source")]
