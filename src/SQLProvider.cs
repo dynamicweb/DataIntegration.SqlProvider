@@ -172,6 +172,32 @@ namespace Dynamicweb.DataIntegration.Providers.SqlProvider
             RemoveMissingAfterImportDestinationTablesOnly = false;
         }
 
+        public override void LoadSettings(Job job)
+        {
+            base.LoadSettings(job);
+            if (job.Mappings != null)
+            {
+                string error = "";
+                foreach (var mapping in job.Mappings)
+                {
+                    if (mapping != null && mapping.SourceTable != null && mapping.DestinationTable != null && mapping.Active)
+                    {
+                        var responseColumnMappings = mapping.GetResponseColumnMappings();
+                        if (responseColumnMappings != null && responseColumnMappings.Any())
+                        {
+                            if (!mapping.GetColumnMappings().Where(obj => obj.SourceColumn != null && obj.IsKey).Select(obj => obj.SourceColumn.Name).Any())
+                            {
+                                error += $"Response mapping for the source table: {mapping.SourceTable?.Name} and destination table: {mapping.DestinationTable?.Name} mapping must have at least one Key column set. ";
+                            }
+                        }
+                    }
+                }
+                if (!string.IsNullOrEmpty(error))
+                    throw new Exception(error);
+            }
+        }
+
+
         public SqlProvider(XmlNode xmlNode)
         {
             RemoveMissingAfterImport = false;

@@ -40,8 +40,10 @@ namespace Dynamicweb.DataIntegration.Providers.SqlProvider
                 Converter.ToInt32(Dynamicweb.Configuration.SystemConfiguration.Instance.GetValue("/Globalsettings/Settings/DataIntegration/SQLSourceCommandTimeout")) :
                 Converter.ToInt32(Dynamicweb.Configuration.SystemConfiguration.Instance.GetValue("/Globalsettings/DataIntegration/SQLSourceCommandTimeout"));
             if (_commandtimeout > 0)
+            {
                 _command.CommandTimeout = _commandtimeout;
-
+                _responseCommand.CommandTimeout = _commandtimeout;
+            }
         }
 
         private void LoadReaderFromDatabase()
