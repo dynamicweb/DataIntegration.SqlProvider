@@ -153,11 +153,6 @@ namespace Dynamicweb.DataIntegration.Providers.SqlProvider
             return ret;
         }
 
-        protected bool IsColumnUsedInMappingConditions(string columnName)
-        {
-            return mapping.Conditionals.Where(mc => mc != null && mc.SourceColumn != null).Any(mc => string.Compare(mc.SourceColumn.Name, columnName, true) == 0);
-        }
-
         protected SqlSourceReader()
         {
         }
