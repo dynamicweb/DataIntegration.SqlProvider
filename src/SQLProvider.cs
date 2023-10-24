@@ -395,7 +395,7 @@ public class SqlProvider : BaseSqlProvider, ISource, IDestination
 
     public new virtual Schema GetOriginalSourceSchema()
     {
-        return GetSqlSourceSchema(Connection);
+        return GetSqlSourceSchema(Connection, null);
     }
 
     public override Schema GetOriginalDestinationSchema()
