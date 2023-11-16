@@ -1,5 +1,4 @@
-﻿using Dynamicweb.Core;
-using Dynamicweb.DataIntegration.Integration;
+﻿using Dynamicweb.DataIntegration.Integration;
 using Dynamicweb.DataIntegration.Integration.Interfaces;
 using Dynamicweb.DataIntegration.ProviderHelpers;
 using Dynamicweb.Logging;
@@ -8,7 +7,6 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 using System.Linq;
-using System.Text;
 
 namespace Dynamicweb.DataIntegration.Providers.SqlProvider
 {
@@ -239,10 +237,20 @@ namespace Dynamicweb.DataIntegration.Providers.SqlProvider
         /// <param name="extraConditions">Where condition to filter data for deletion</param>
         public virtual void DeleteExcessFromMainTable(string extraConditions)
         {
+            DeleteRowsNotInSourceFromMainTable(extraConditions);
+        }
+
+        /// <summary>
+        /// Deletes rows not present in the import source
+        /// </summary>
+        /// <param name="extraConditions">Where condition to filter data for deletion</param>
+        public virtual long DeleteRowsNotInSourceFromMainTable(string extraConditions)
+        {
             if (removeMissingAfterImport || removeMissingAfterImportDestinationTablesOnly)
             {
-                DeleteExcessFromMainTable(Mapping, extraConditions, SqlCommand, tempTablePrefix, removeMissingAfterImportDestinationTablesOnly);
+                return DeleteExcessFromMainTable(SqlCommand, Mapping, extraConditions, tempTablePrefix, removeMissingAfterImportDestinationTablesOnly);
             }
+            return 0;
         }
 
         /// <summary>
@@ -273,104 +281,9 @@ namespace Dynamicweb.DataIntegration.Providers.SqlProvider
             }
         }
 
-        /// <summary>
-        /// Move data to main table
-        /// </summary>
-        /// <param name="sqlTransaction">Transaction</param>
-        internal void MoveDataToMainTable(SqlTransaction sqlTransaction)
+        protected internal int MoveDataToMainTable(SqlTransaction sqlTransaction)
         {
-            MoveDataToMainTable(sqlTransaction, false);
-        }
-
-        /// <summary>
-        /// Move data to main table
-        /// </summary>
-        /// <param name="sqlTransaction">Transaction</param>
-        /// <param name="updateOnly">Update only</param>
-        private void MoveDataToMainTable(SqlTransaction sqlTransaction, bool updateOnly)
-        {
-            MoveDataToMainTable(sqlTransaction, updateOnly, false);
-        }
-
-        /// <summary>
-        /// Move data to main table
-        /// </summary>
-        /// <param name="sqlTransaction">Transaction</param>
-        /// <param name="updateOnly">Update only</param>
-        /// <param name="insertOnly">Insert only</param>
-        private void MoveDataToMainTable(SqlTransaction sqlTransaction, bool updateOnly, bool insertOnly)
-        {
-            SqlCommand.Transaction = sqlTransaction;
-            List<string> insertColumns = new List<string>();
-            //Get columnList for current Table
-            try
-            {
-                string sqlConditions = "";
-                string firstKey = "";
-                var columnMappings = Mapping.GetColumnMappings().Where(cm => cm.Active).DistinctBy(obj => obj.DestinationColumn.Name);
-                bool isPrimaryKeyColumnExists = columnMappings.IsKeyColumnExists();
-
-                foreach (ColumnMapping columnMapping in columnMappings)
-                {
-                    SqlColumn column = (SqlColumn)columnMapping.DestinationColumn;
-                    if (column.IsKeyColumn(columnMappings) || (!isPrimaryKeyColumnExists && !columnMapping.ScriptValueForInsert))
-                    {
-                        sqlConditions = sqlConditions + "[" + Mapping.DestinationTable.SqlSchema + "].[" +
-                                              Mapping.DestinationTable.Name + "].[" + columnMapping.DestinationColumn.Name + "]=[" +
-                                              Mapping.DestinationTable.SqlSchema + "].[" +
-                                              Mapping.DestinationTable.Name + tempTablePrefix + "].[" + columnMapping.DestinationColumn.Name + "] and ";
-                        if (firstKey == "")
-                            firstKey = columnMapping.DestinationColumn.Name;
-                    }
-                }
-                sqlConditions = sqlConditions.Substring(0, sqlConditions.Length - 4);
-
-                string selectColumns = "";
-                string updateColumns = "";
-                foreach (var columnMapping in columnMappings)
-                {
-                    insertColumns.Add("[" + columnMapping.DestinationColumn.Name + "]");
-                    selectColumns = selectColumns + "[" + Mapping.DestinationTable.SqlSchema + "].[" + Mapping.DestinationTable.Name + tempTablePrefix + "].[" + columnMapping.DestinationColumn.Name + "], ";
-                    if (!((SqlColumn)columnMapping.DestinationColumn).IsIdentity && !((SqlColumn)columnMapping.DestinationColumn).IsKeyColumn(columnMappings) && !columnMapping.ScriptValueForInsert)
-                        updateColumns = updateColumns + "[" + columnMapping.DestinationColumn.Name + "]=[" + Mapping.DestinationTable.SqlSchema + "].[" + columnMapping.DestinationColumn.Table.Name + tempTablePrefix + "].[" + columnMapping.DestinationColumn.Name + "], ";
-                }
-
-                string sqlUpdateInsert = "";
-                if (!string.IsNullOrEmpty(updateColumns) && !insertOnly)
-                {
-                    updateColumns = updateColumns.Substring(0, updateColumns.Length - 2);
-                    sqlUpdateInsert = sqlUpdateInsert + "update [" + Mapping.DestinationTable.SqlSchema + "].[" + Mapping.DestinationTable.Name + "] set " + updateColumns + " from [" + Mapping.DestinationTable.SqlSchema + "].[" + Mapping.DestinationTable.Name + tempTablePrefix + "] where " + sqlConditions + ";";
-                }
-                if (!string.IsNullOrEmpty(selectColumns))
-                {
-                    selectColumns = selectColumns.Substring(0, selectColumns.Length - 2);
-                    if (!updateOnly)
-                    {
-                        if (HasIdentity(Mapping))
-                        {
-                            sqlUpdateInsert = sqlUpdateInsert + "set identity_insert [" + Mapping.DestinationTable.SqlSchema + "].[" +
-                                                 Mapping.DestinationTable.Name + "] ON;";
-                        }
-                        sqlUpdateInsert = sqlUpdateInsert + " insert into [" + Mapping.DestinationTable.SqlSchema + "].[" + Mapping.DestinationTable.Name + "] (" + string.Join(",", insertColumns) + ") (" +
-                            "select " + selectColumns + " from [" + Mapping.DestinationTable.SqlSchema + "].[" + Mapping.DestinationTable.Name + tempTablePrefix + "] left outer join [" + Mapping.DestinationTable.SqlSchema + "].[" + Mapping.DestinationTable.Name + "] on " + sqlConditions + " where [" + Mapping.DestinationTable.SqlSchema + "].[" + Mapping.DestinationTable.Name + "].[" + firstKey + "] is null);";
-                        if (HasIdentity(Mapping))
-                        {
-                            sqlUpdateInsert = sqlUpdateInsert + "set identity_insert [" + Mapping.DestinationTable.SqlSchema + "].[" +
-                                                Mapping.DestinationTable.Name + "] OFF;";
-                        }
-                    }
-                }
-                SqlCommand.CommandText = sqlUpdateInsert;
-                if (SqlCommand.Connection.State != ConnectionState.Open)
-                {
-                    SqlCommand.Connection.Open();
-                }
-                SqlCommand.ExecuteNonQuery();
-            }
-            catch (Exception ex)
-            {
-                throw GetMoveDataToMainTableException(ex, SqlCommand, Mapping, tempTablePrefix, insertColumns);
-            }
+            return MoveDataToMainTable(SqlCommand, Mapping, sqlTransaction, tempTablePrefix);
         }
 
         #region IDisposable Implementation

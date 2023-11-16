@@ -493,7 +493,9 @@ public class SqlProvider : BaseSqlProvider, ISource, IDestination
                 if (writer.RowsToWriteCount > 0)
                 {
                     System.Diagnostics.Debug.WriteLine(DateTime.Now + ": Moving data to main table: " + writer.Mapping.DestinationTable.Name);
-                    writer.MoveDataToMainTable(Transaction);
+                    int rowsAffected = writer.MoveDataToMainTable(Transaction);
+                    if (rowsAffected > 0)
+                        Logger.Log($"The number of rows affected: {rowsAffected} in the {writer.Mapping.DestinationTable.Name} table");
                 }
                 else
                 {
@@ -505,8 +507,10 @@ public class SqlProvider : BaseSqlProvider, ISource, IDestination
                 if (writer.RowsToWriteCount > 0)
                 {
                     System.Diagnostics.Debug.WriteLine(DateTime.Now + ": Removing excess data from table: " + writer.Mapping.DestinationTable.Name);
-                    writer.DeleteExcessFromMainTable("");
+                    long rowsAffected = writer.DeleteRowsNotInSourceFromMainTable("");
                     System.Diagnostics.Debug.WriteLine(DateTime.Now + ": excess data Removed from table: " + writer.Mapping.DestinationTable.Name);
+                    if (rowsAffected > 0)
+                        Logger.Log($"The number of deleted rows: {rowsAffected} for the destination {writer.Mapping.DestinationTable.Name} table mapping");
                 }
             }
             CommitTransaction();
