@@ -43,6 +43,7 @@ namespace Dynamicweb.DataIntegration.Providers.SqlProvider
         protected DuplicateRowsHandler duplicateRowsHandler;
         protected readonly bool removeMissingAfterImportDestinationTablesOnly;
         protected readonly bool SkipFailingRows;
+        private readonly ColumnMappingCollection _columnMappings;
 
         /// <summary>
         /// Initializes a new instance of the SqlDestinationWriter class.
@@ -90,6 +91,7 @@ namespace Dynamicweb.DataIntegration.Providers.SqlProvider
         public SqlDestinationWriter(Mapping mapping, SqlConnection connection, bool removeMissingAfterImport, ILogger logger, string tempTablePrefix, bool discardDuplicates)
         {
             Mapping = mapping;
+            _columnMappings = Mapping.GetColumnMappings();
             SqlCommand = connection.CreateCommand();
             SqlCommand.CommandTimeout = 1200;
             this.removeMissingAfterImport = removeMissingAfterImport;
@@ -116,6 +118,7 @@ namespace Dynamicweb.DataIntegration.Providers.SqlProvider
         public SqlDestinationWriter(Mapping mapping, SqlConnection connection, bool removeMissingAfterImport, ILogger logger, bool discardDuplicates)
         {
             Mapping = mapping;
+            _columnMappings = Mapping.GetColumnMappings();
             SqlCommand = connection.CreateCommand();
             SqlCommand.CommandTimeout = 1200;
             this.removeMissingAfterImport = removeMissingAfterImport;
@@ -142,6 +145,7 @@ namespace Dynamicweb.DataIntegration.Providers.SqlProvider
         public SqlDestinationWriter(Mapping mapping, SqlCommand mockSqlCommand, bool removeMissingAfterImport, ILogger logger, string tempTablePrefix, bool discardDuplicates)
         {
             Mapping = mapping;
+            _columnMappings = Mapping.GetColumnMappings();
             SqlCommand = mockSqlCommand;
             this.removeMissingAfterImport = removeMissingAfterImport;
             this.logger = logger;
@@ -153,14 +157,13 @@ namespace Dynamicweb.DataIntegration.Providers.SqlProvider
         protected new virtual void Initialize()
         {
             List<SqlColumn> destColumns = new List<SqlColumn>();
-            var columnMappings = Mapping.GetColumnMappings();
-            foreach (ColumnMapping columnMapping in columnMappings.DistinctBy(obj => obj.DestinationColumn.Name))
+            foreach (ColumnMapping columnMapping in _columnMappings.DistinctBy(obj => obj.DestinationColumn.Name))
             {
                 destColumns.Add((SqlColumn)columnMapping.DestinationColumn);
             }
             if (Mapping.DestinationTable != null && Mapping.DestinationTable.Name == "EcomAssortmentPermissions")
             {
-                if (columnMappings.Find(m => string.Compare(m.DestinationColumn.Name, "AssortmentPermissionAccessUserID", true) == 0) == null)
+                if (_columnMappings.Find(m => string.Compare(m.DestinationColumn.Name, "AssortmentPermissionAccessUserID", true) == 0) == null)
                     destColumns.Add(new SqlColumn("AssortmentPermissionAccessUserID", typeof(string), SqlDbType.Int, null, -1, false, true, false));
             }
             SQLTable.CreateTempTable(SqlCommand, Mapping.DestinationTable.SqlSchema, Mapping.DestinationTable.Name, tempTablePrefix, destColumns, logger);
@@ -189,7 +192,7 @@ namespace Dynamicweb.DataIntegration.Providers.SqlProvider
 
             DataRow dataRow = TableToWrite.NewRow();
 
-            var columnMappings = Mapping.GetColumnMappings().Where(cm => cm.Active);
+            var columnMappings = _columnMappings.Where(cm => cm.Active);
             foreach (ColumnMapping columnMapping in columnMappings)
             {
                 object rowValue = null;
