@@ -157,6 +157,7 @@ public class SqlProvider : BaseSqlProvider, ISource, IDestination
     {
         get { return _transaction ?? (_transaction = Connection.BeginTransaction("SQLProviderTransaction")); }
     }
+
     public SqlProvider()
     {
     }
@@ -302,6 +303,7 @@ public class SqlProvider : BaseSqlProvider, ISource, IDestination
         }
         return "";
     }
+
     public override string ValidateSourceSettings()
     {
         try
@@ -424,7 +426,6 @@ public class SqlProvider : BaseSqlProvider, ISource, IDestination
         Connection.Close();
     }
 
-
     protected void CommitTransaction()
     {
         if (_transaction != null)
@@ -476,8 +477,10 @@ public class SqlProvider : BaseSqlProvider, ISource, IDestination
                         while (!reader.IsDone())
                         {
                             sourceRow = reader.GetNext();
-                            ProcessInputRow(mapping, sourceRow);
-                            writer.Write(sourceRow);
+                            if (ProcessInputRow(sourceRow, mapping))
+                            {
+                                writer.Write(sourceRow);
+                            }
                         }
                         writer.FinishWriting();
                         writers.Add(writer);
@@ -495,7 +498,10 @@ public class SqlProvider : BaseSqlProvider, ISource, IDestination
                     System.Diagnostics.Debug.WriteLine(DateTime.Now + ": Moving data to main table: " + writer.Mapping.DestinationTable.Name);
                     int rowsAffected = writer.MoveDataToMainTable(Transaction);
                     if (rowsAffected > 0)
+                    {
                         Logger.Log($"The number of rows affected: {rowsAffected} in the {writer.Mapping.DestinationTable.Name} table");
+                        writer.RowsAffected += rowsAffected;
+                    }
                 }
                 else
                 {
@@ -510,7 +516,10 @@ public class SqlProvider : BaseSqlProvider, ISource, IDestination
                     long rowsAffected = writer.DeleteRowsNotInSourceFromMainTable("");
                     System.Diagnostics.Debug.WriteLine(DateTime.Now + ": excess data Removed from table: " + writer.Mapping.DestinationTable.Name);
                     if (rowsAffected > 0)
+                    {
                         Logger.Log($"The number of deleted rows: {rowsAffected} for the destination {writer.Mapping.DestinationTable.Name} table mapping");
+                        writer.RowsAffected += (int)rowsAffected;
+                    }
                 }
             }
             CommitTransaction();
