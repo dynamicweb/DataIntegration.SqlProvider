@@ -500,7 +500,7 @@ public class SqlProvider : BaseSqlProvider, ISource, IDestination
                     if (rowsAffected > 0)
                     {
                         Logger.Log($"The number of rows affected: {rowsAffected} in the {writer.Mapping.DestinationTable.Name} table");
-                        writer.RowsAffected += rowsAffected;
+                        TotalRowsAffected += rowsAffected;
                     }
                 }
                 else
@@ -518,7 +518,7 @@ public class SqlProvider : BaseSqlProvider, ISource, IDestination
                     if (rowsAffected > 0)
                     {
                         Logger.Log($"The number of deleted rows: {rowsAffected} for the destination {writer.Mapping.DestinationTable.Name} table mapping");
-                        writer.RowsAffected += (int)rowsAffected;
+                        TotalRowsAffected += rowsAffected;
                     }
                 }
             }
@@ -549,6 +549,7 @@ public class SqlProvider : BaseSqlProvider, ISource, IDestination
                 Logger.Log("Import job failed: " + msg);
             }
             RollbackTransaction();
+            TotalRowsAffected = 0;
             return false;
         }
         finally
