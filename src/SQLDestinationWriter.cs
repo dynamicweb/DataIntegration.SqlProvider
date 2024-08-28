@@ -91,7 +91,7 @@ namespace Dynamicweb.DataIntegration.Providers.SqlProvider
         public SqlDestinationWriter(Mapping mapping, SqlConnection connection, bool removeMissingAfterImport, ILogger logger, string tempTablePrefix, bool discardDuplicates)
         {
             Mapping = mapping;
-            _columnMappings = Mapping.GetColumnMappings();
+            _columnMappings = new ColumnMappingCollection(ReplaceKeyColumnsWithAutoIdIfExists(Mapping));
             SqlCommand = connection.CreateCommand();
             SqlCommand.CommandTimeout = 1200;
             this.removeMissingAfterImport = removeMissingAfterImport;
@@ -118,7 +118,7 @@ namespace Dynamicweb.DataIntegration.Providers.SqlProvider
         public SqlDestinationWriter(Mapping mapping, SqlConnection connection, bool removeMissingAfterImport, ILogger logger, bool discardDuplicates)
         {
             Mapping = mapping;
-            _columnMappings = Mapping.GetColumnMappings();
+            _columnMappings = new ColumnMappingCollection(ReplaceKeyColumnsWithAutoIdIfExists(Mapping));
             SqlCommand = connection.CreateCommand();
             SqlCommand.CommandTimeout = 1200;
             this.removeMissingAfterImport = removeMissingAfterImport;
@@ -145,7 +145,7 @@ namespace Dynamicweb.DataIntegration.Providers.SqlProvider
         public SqlDestinationWriter(Mapping mapping, SqlCommand mockSqlCommand, bool removeMissingAfterImport, ILogger logger, string tempTablePrefix, bool discardDuplicates)
         {
             Mapping = mapping;
-            _columnMappings = Mapping.GetColumnMappings();
+            _columnMappings = new ColumnMappingCollection(ReplaceKeyColumnsWithAutoIdIfExists(Mapping));
             SqlCommand = mockSqlCommand;
             this.removeMissingAfterImport = removeMissingAfterImport;
             this.logger = logger;
@@ -177,6 +177,24 @@ namespace Dynamicweb.DataIntegration.Providers.SqlProvider
             {
                 duplicateRowsHandler = new DuplicateRowsHandler(logger, Mapping);
             }
+        }
+
+        private static IEnumerable<ColumnMapping> ReplaceKeyColumnsWithAutoIdIfExists(Mapping mapping)
+        {
+            //will move this to MappingExtensions - US https://dev.azure.com/dynamicwebsoftware/Dynamicweb/_workitems/edit/20900
+            if (mapping == null) return [];
+
+            var autoIdDestinationColumnName = MappingExtensions.GetAutoIdColumnName(mapping.DestinationTable?.Name ?? "");
+            if (string.IsNullOrEmpty(autoIdDestinationColumnName)) return mapping.GetColumnMappings();
+
+            var columnMappings = mapping.GetColumnMappings().ToList();
+            var autoIdColumnMapping = columnMappings.Where(obj => obj.DestinationColumn.Name.Equals(autoIdDestinationColumnName, StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
+            if (autoIdColumnMapping != null)
+            {
+                columnMappings.ForEach(obj => obj.IsKey = false);
+                autoIdColumnMapping.IsKey = true;
+            }
+            return columnMappings;
         }
 
         /// <summary>
