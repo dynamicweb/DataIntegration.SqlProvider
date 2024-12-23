@@ -17,6 +17,11 @@ namespace Dynamicweb.DataIntegration.Providers.SqlProvider
     {
         public SqlCommand SqlCommand;
 
+        internal string GetTempTableName
+        {
+            get => tempTablePrefix;
+        }
+
         public new Mapping Mapping { get; }
 
         /// <summary>
@@ -232,6 +237,12 @@ namespace Dynamicweb.DataIntegration.Providers.SqlProvider
                     }
                 }
             }
+        }
+
+        internal int DeleteExcessFromMainTable(SqlTransaction transaction, Dictionary<string, Mapping> mappings)
+        {
+            SqlCommand.Transaction = transaction;
+            return DeleteRowsFromMainTable(false, mappings, "", SqlCommand);
         }
 
         /// <summary>
